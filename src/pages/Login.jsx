@@ -24,8 +24,9 @@ export default function Login() {
     const { error } = await login(email, password)
 
     if (error) {
-      setError('Correo o contraseña incorrectos')
-      setLoading(false)
+  setError(error.message === 'Usuario desactivado. Contacta al coordinador.'
+    ? 'Usuario desactivado. Contacta al coordinador.'
+    : 'Correo o contraseña incorrectos')
     }
   }
 
