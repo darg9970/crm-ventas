@@ -42,10 +42,27 @@ async function cargarPerfil(userId) {
   setLoading(false)
 }
 
-  async function login(email, password) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    return { error }
+async function login(email, password) {
+  const { error } = await supabase.auth.signInWithPassword({ email, password })
+  
+  if (error) return { error }
+
+  // Verificar si el usuario está activo
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  const { data: perfil } = await supabase
+    .from('usuarios')
+    .select('activo')
+    .eq('id', user.id)
+    .single()
+
+  if (!perfil || !perfil.activo) {
+    await supabase.auth.signOut()
+    return { error: { message: 'Usuario desactivado. Contacta al coordinador.' } }
   }
+
+  return { error: null }
+}
 
   async function logout() {
     await supabase.auth.signOut()
