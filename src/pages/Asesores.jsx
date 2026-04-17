@@ -34,7 +34,7 @@ export default function Asesores() {
   const { data: { session } } = await supabase.auth.getSession()
 
   const response = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/crear-asesor`,
+    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/swift-service`,
     {
       method: 'POST',
       headers: {
