@@ -25,16 +25,19 @@ export function AuthProvider({ children }) {
   }, [])
 
 async function cargarPerfil(userId) {
-  console.log('🔍 Cargando perfil para:', userId)
   const { data, error } = await supabase
     .from('usuarios')
     .select('*')
     .eq('id', userId)
     .single()
-  
-  console.log('📦 Perfil obtenido:', data)
-  console.log('❌ Error si hay:', error)
-  
+
+  if (error || !data || !data.activo) {
+    await supabase.auth.signOut()
+    setPerfil(null)
+    setLoading(false)
+    return
+  }
+
   setPerfil(data)
   setLoading(false)
 }
