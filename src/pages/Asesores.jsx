@@ -27,46 +27,42 @@ export default function Asesores() {
   }
 
   async function crearAsesor(e) {
-    e.preventDefault()
-    setEnviando(true)
-    setMensaje(null)
+  e.preventDefault()
+  setEnviando(true)
+  setMensaje(null)
 
-    // 1. Crear usuario en auth
-    const { data, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: form.email,
-      password: form.password,
-      email_confirm: true
-    })
+  const { data: { session } } = await supabase.auth.getSession()
 
-    if (authError) {
-      setMensaje({ tipo: 'error', texto: 'Error: ' + authError.message })
-      setEnviando(false)
-      return
-    }
-
-    // 2. Crear perfil en tabla usuarios
-    const { error: perfilError } = await supabase
-      .from('usuarios')
-      .insert([{
-        id: data.user.id,
+  const response = await fetch(
+    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/crear-asesor`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({
         nombre: form.nombre,
         email: form.email,
-        telefono: form.telefono,
-        rol: 'asesor',
-        activo: true
-      }])
-
-    if (perfilError) {
-      setMensaje({ tipo: 'error', texto: 'Error al crear perfil: ' + perfilError.message })
-    } else {
-      setMensaje({ tipo: 'exito', texto: '✅ Asesor creado correctamente.' })
-      setForm({ nombre: '', email: '', telefono: '', password: '' })
-      setMostrarForm(false)
-      cargarAsesores()
+        password: form.password,
+        telefono: form.telefono
+      })
     }
+  )
 
-    setEnviando(false)
+  const result = await response.json()
+
+  if (result.error) {
+    setMensaje({ tipo: 'error', texto: 'Error: ' + result.error })
+  } else {
+    setMensaje({ tipo: 'exito', texto: '✅ Asesor creado correctamente.' })
+    setForm({ nombre: '', email: '', telefono: '', password: '' })
+    setMostrarForm(false)
+    cargarAsesores()
   }
+
+  setEnviando(false)
+}
 
   async function toggleActivo(asesor) {
     const { error } = await supabase
