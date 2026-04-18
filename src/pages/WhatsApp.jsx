@@ -4,10 +4,9 @@ import { supabase } from '../lib/supabase'
 
 const INSTANCIAS = [
   { nombre: 'Khristian Ramirez', instancia: 'Khristian Ramirez', telefono: '573133536525' },
-  { nombre: 'Cristina Gomez', instancia: 'Cristina Gomez', telefono: '573219180250' },
+  { nombre: 'Nidia Gomez', instancia: 'Nidia Gomez', telefono: '573219180250' },
   { nombre: 'Luisa ramirez', instancia: 'Luisa ramirez', telefono: '573115918611' },
   { nombre: 'Catalina Duarte', instancia: 'Catalina Duarte', telefono: 'SIN DATOS' },
-
 ]
 
 async function fetchConReintento(instancia, intentos = 3) {
@@ -30,7 +29,6 @@ async function fetchConReintento(instancia, intentos = 3) {
 export default function WhatsApp() {
   const { perfil, logout } = useAuth()
   const [metricas, setMetricas] = useState([])
-const ultimasMetricas = useState({})[0]
   const [cargando, setCargando] = useState(true)
   const [ultimaActualizacion, setUltimaActualizacion] = useState(null)
 
@@ -44,82 +42,81 @@ const ultimasMetricas = useState({})[0]
   }, [fechaSeleccionada])
 
   async function cargarMetricas() {
-  setCargando(true)
+    setCargando(true)
 
-  const inicioDia = new Date(fechaSeleccionada + 'T00:00:00').getTime()
-  const finDia = new Date(fechaSeleccionada + 'T23:59:59').getTime()
+    const inicioDia = new Date(fechaSeleccionada + 'T00:00:00').getTime()
+    const finDia = new Date(fechaSeleccionada + 'T23:59:59').getTime()
 
-  const resultados = await Promise.all(
-    INSTANCIAS.map(async (a) => {
-      try {
-        const data = await fetchConReintento(a.instancia)
-        const todosChats = Array.isArray(data.chats) ? data.chats : []
-        const instancias = Array.isArray(data.instancias) ? data.instancias : []
-        const instanciaInfo = instancias.find(i => i.name === a.instancia)
+    const resultados = await Promise.all(
+      INSTANCIAS.map(async (a) => {
+        try {
+          const data = await fetchConReintento(a.instancia)
+          const todosChats = Array.isArray(data.chats) ? data.chats : []
+          const instancias = Array.isArray(data.instancias) ? data.instancias : []
+          const instanciaInfo = instancias.find(i => i.name === a.instancia)
 
-        const chatsSolo = todosChats.filter(c => {
-          const id = c.remoteJid || c.id || ''
-          return !id.includes('@g.us') && !id.includes('-')
-        })
+          const chatsSolo = todosChats.filter(c => {
+            const id = c.remoteJid || c.id || ''
+            return !id.includes('@g.us') && !id.includes('-')
+          })
 
-        const ahora = Date.now()
-        const hace24h = ahora - 24 * 60 * 60 * 1000
+          const ahora = Date.now()
+          const hace24h = ahora - 24 * 60 * 60 * 1000
 
-        const chatsDia = chatsSolo.filter(c => {
-          const ts = c.lastMessage?.messageTimestamp
-          if (!ts) return false
-          const t = ts * 1000
-          return t >= inicioDia && t <= finDia
-        })
+          const chatsDia = chatsSolo.filter(c => {
+            const ts = c.lastMessage?.messageTimestamp
+            if (!ts) return false
+            const t = ts * 1000
+            return t >= inicioDia && t <= finDia
+          })
 
-        const chatsHoy = chatsSolo.filter(c => {
-          const ts = c.lastMessage?.messageTimestamp
-          return ts && (ts * 1000) > hace24h
-        })
+          const chatsHoy = chatsSolo.filter(c => {
+            const ts = c.lastMessage?.messageTimestamp
+            return ts && (ts * 1000) > hace24h
+          })
 
-        const sinResponder = chatsDia.filter(c =>
-          c.lastMessage && !c.lastMessage.key?.fromMe
-        )
+          const sinResponder = chatsDia.filter(c =>
+            c.lastMessage && !c.lastMessage.key?.fromMe
+          )
 
-        const mensajesEnviados = chatsDia.filter(c =>
-          c.lastMessage?.key?.fromMe
-        ).length
+          const mensajesEnviados = chatsDia.filter(c =>
+            c.lastMessage?.key?.fromMe
+          ).length
 
-        const chatsRespondidos = chatsDia
-          .filter(c => c.lastMessage?.key?.fromMe && c.lastMessage?.messageTimestamp)
-          .sort((a, b) => b.lastMessage.messageTimestamp - a.lastMessage.messageTimestamp)
+          const chatsRespondidos = chatsDia
+            .filter(c => c.lastMessage?.key?.fromMe && c.lastMessage?.messageTimestamp)
+            .sort((a, b) => b.lastMessage.messageTimestamp - a.lastMessage.messageTimestamp)
 
-        let tiempoUltimaResp = null
-        if (chatsRespondidos.length > 0) {
-          const ts = chatsRespondidos[0].lastMessage.messageTimestamp
-          const minutos = Math.round((ahora / 1000 - ts) / 60)
-          if (minutos >= 0 && minutos < 1440) tiempoUltimaResp = minutos
+          let tiempoUltimaResp = null
+          if (chatsRespondidos.length > 0) {
+            const ts = chatsRespondidos[0].lastMessage.messageTimestamp
+            const minutos = Math.round((ahora / 1000 - ts) / 60)
+            if (minutos >= 0 && minutos < 1440) tiempoUltimaResp = minutos
+          }
+
+          const estado = instanciaInfo?.connectionStatus ||
+            (todosChats.length > 0 ? 'open' : 'unknown')
+
+          return {
+            ...a,
+            estado,
+            chatsDia: chatsDia.length,
+            chatsHoy: chatsHoy.length,
+            sinResponder: sinResponder.length,
+            mensajesEnviados,
+            tiempoUltimaResp,
+            ok: true
+          }
+        } catch (err) {
+          const ultimo = metricas.find(m => m.instancia === a.instancia)
+          return ultimo || { ...a, ok: false, error: err.message }
         }
-
-        // Estado: si tiene chats cargados, está conectado
-        const estado = instanciaInfo?.connectionStatus ||
-          (todosChats.length > 0 ? 'open' : 'unknown')
-
-        return {
-          ...a,
-          estado,
-          chatsDia: chatsDia.length,
-          chatsHoy: chatsHoy.length,
-          sinResponder: sinResponder.length,
-          mensajesEnviados,
-          tiempoUltimaResp,
-          ok: true
-        }
-      } catch (err) {
-  const ultimo = metricas.find(m => m.instancia === a.instancia)
-  return ultimo || { ...a, ok: false, error: err.message }
-}
-    })
-  )
-  setMetricas(resultados)
-  setUltimaActualizacion(new Date().toLocaleTimeString('es-CO'))
-  setCargando(false)
-}
+      })
+    )
+    setMetricas(resultados)
+    setUltimaActualizacion(new Date().toLocaleTimeString('es-CO'))
+    setCargando(false)
+  }
 
   const esDiaActual = fechaSeleccionada === hoy
 
