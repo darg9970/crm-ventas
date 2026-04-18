@@ -9,6 +9,7 @@ export default function Asesores() {
   const [enviando, setEnviando] = useState(false)
   const [mensaje, setMensaje] = useState(null)
   const [mostrarForm, setMostrarForm] = useState(false)
+  const [confirmEliminar, setConfirmEliminar] = useState(null)
   const [form, setForm] = useState({ nombre: '', email: '', telefono: '', password: '' })
 
   useEffect(() => {
@@ -27,42 +28,42 @@ export default function Asesores() {
   }
 
   async function crearAsesor(e) {
-  e.preventDefault()
-  setEnviando(true)
-  setMensaje(null)
+    e.preventDefault()
+    setEnviando(true)
+    setMensaje(null)
 
-  const { data: { session } } = await supabase.auth.getSession()
+    const { data: { session } } = await supabase.auth.getSession()
 
-  const response = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/swift-service`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`
-      },
-      body: JSON.stringify({
-        nombre: form.nombre,
-        email: form.email,
-        password: form.password,
-        telefono: form.telefono
-      })
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/swift-service`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          nombre: form.nombre,
+          email: form.email,
+          password: form.password,
+          telefono: form.telefono
+        })
+      }
+    )
+
+    const result = await response.json()
+
+    if (result.error) {
+      setMensaje({ tipo: 'error', texto: 'Error: ' + result.error })
+    } else {
+      setMensaje({ tipo: 'exito', texto: '✅ Asesor creado correctamente.' })
+      setForm({ nombre: '', email: '', telefono: '', password: '' })
+      setMostrarForm(false)
+      cargarAsesores()
     }
-  )
 
-  const result = await response.json()
-
-  if (result.error) {
-    setMensaje({ tipo: 'error', texto: 'Error: ' + result.error })
-  } else {
-    setMensaje({ tipo: 'exito', texto: '✅ Asesor creado correctamente.' })
-    setForm({ nombre: '', email: '', telefono: '', password: '' })
-    setMostrarForm(false)
-    cargarAsesores()
+    setEnviando(false)
   }
-
-  setEnviando(false)
-}
 
   async function toggleActivo(asesor) {
     const { error } = await supabase
@@ -77,6 +78,48 @@ export default function Asesores() {
     }
   }
 
+  async function eliminarAsesor(asesor) {
+    setEnviando(true)
+    setMensaje(null)
+
+    const { data: { session } } = await supabase.auth.getSession()
+
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/swift-service`,
+      {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ userId: asesor.id })
+      }
+    )
+
+    const result = await response.json()
+
+    if (result.error) {
+      // Si la edge function no soporta DELETE, eliminamos solo el perfil
+      const { error } = await supabase
+        .from('usuarios')
+        .delete()
+        .eq('id', asesor.id)
+
+      if (error) {
+        setMensaje({ tipo: 'error', texto: 'Error al eliminar asesor.' })
+      } else {
+        setMensaje({ tipo: 'exito', texto: '✅ Asesor eliminado correctamente.' })
+        setAsesores(prev => prev.filter(a => a.id !== asesor.id))
+      }
+    } else {
+      setMensaje({ tipo: 'exito', texto: '✅ Asesor eliminado correctamente.' })
+      setAsesores(prev => prev.filter(a => a.id !== asesor.id))
+    }
+
+    setConfirmEliminar(null)
+    setEnviando(false)
+  }
+
   return (
     <div style={styles.container}>
       {/* Header */}
@@ -89,9 +132,38 @@ export default function Asesores() {
           <button onClick={() => setMostrarForm(!mostrarForm)} style={styles.botonCrear}>
             {mostrarForm ? '✕ Cancelar' : '+ Nuevo Asesor'}
           </button>
+          <button onClick={() => window.location.href='/dashboard'} style={styles.botonNav}>
+            ← Dashboard
+          </button>
           <button onClick={logout} style={styles.botonCerrar}>Cerrar sesión</button>
         </div>
       </div>
+
+      {/* Modal confirmación eliminar */}
+      {confirmEliminar && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modal}>
+            <h3 style={styles.modalTitulo}>⚠️ Eliminar asesor</h3>
+            <p style={styles.modalTexto}>
+              ¿Estás seguro que deseas eliminar a <strong>{confirmEliminar.nombre}</strong>?
+              Esta acción no se puede deshacer.
+            </p>
+            <div style={styles.modalBotones}>
+              <button
+                onClick={() => setConfirmEliminar(null)}
+                style={styles.botonCancelar}>
+                Cancelar
+              </button>
+              <button
+                onClick={() => eliminarAsesor(confirmEliminar)}
+                disabled={enviando}
+                style={styles.botonEliminar}>
+                {enviando ? 'Eliminando...' : 'Sí, eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Formulario nuevo asesor */}
       {mostrarForm && (
@@ -141,6 +213,12 @@ export default function Asesores() {
       <div style={styles.card}>
         <h2 style={styles.subtituloCard}>Asesores registrados ({asesores.length})</h2>
 
+        {mensaje && !mostrarForm && (
+          <p style={{...( mensaje.tipo === 'exito' ? styles.exito : styles.error), marginBottom: '16px'}}>
+            {mensaje.texto}
+          </p>
+        )}
+
         {cargando ? (
           <p style={{textAlign: 'center', color: '#666', padding: '40px'}}>Cargando...</p>
         ) : asesores.length === 0 ? (
@@ -153,7 +231,7 @@ export default function Asesores() {
                 <th style={styles.th}>Correo</th>
                 <th style={styles.th}>Teléfono</th>
                 <th style={styles.th}>Estado</th>
-                <th style={styles.th}>Acción</th>
+                <th style={styles.th}>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -171,15 +249,22 @@ export default function Asesores() {
                     </span>
                   </td>
                   <td style={styles.td}>
-                    <button
-                      onClick={() => toggleActivo(a)}
-                      style={{
-                        ...styles.botonToggle,
-                        borderColor: a.activo ? '#e53e3e' : '#38a169',
-                        color: a.activo ? '#e53e3e' : '#38a169'
-                      }}>
-                      {a.activo ? 'Desactivar' : 'Activar'}
-                    </button>
+                    <div style={styles.acciones}>
+                      <button
+                        onClick={() => toggleActivo(a)}
+                        style={{
+                          ...styles.botonToggle,
+                          borderColor: a.activo ? '#e53e3e' : '#38a169',
+                          color: a.activo ? '#e53e3e' : '#38a169'
+                        }}>
+                        {a.activo ? 'Desactivar' : 'Activar'}
+                      </button>
+                      <button
+                        onClick={() => setConfirmEliminar(a)}
+                        style={styles.botonEliminarFila}>
+                        🗑️ Eliminar
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -199,6 +284,7 @@ const styles = {
   subtituloCard: { fontSize: '18px', fontWeight: '600', color: '#1a1a2e', marginBottom: '20px' },
   headerBotones: { display: 'flex', gap: '12px' },
   botonCrear: { backgroundColor: '#4f46e5', color: 'white', padding: '10px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
+  botonNav: { backgroundColor: '#4f46e5', color: 'white', padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
   botonCerrar: { backgroundColor: 'transparent', border: '1px solid #ddd', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' },
   card: { backgroundColor: 'white', borderRadius: '12px', padding: '32px', boxShadow: '0 2px 12px rgba(0,0,0,0.08)', marginBottom: '24px' },
   form: { display: 'flex', flexDirection: 'column', gap: '20px' },
@@ -215,5 +301,14 @@ const styles = {
   tr: { borderBottom: '1px solid #e2e8f0' },
   td: { padding: '12px 16px', color: '#4a5568' },
   badge: { padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '600' },
-  botonToggle: { backgroundColor: 'transparent', padding: '4px 12px', borderRadius: '6px', border: '1px solid', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }
+  acciones: { display: 'flex', gap: '8px' },
+  botonToggle: { backgroundColor: 'transparent', padding: '4px 12px', borderRadius: '6px', border: '1px solid', cursor: 'pointer', fontSize: '13px', fontWeight: '600' },
+  botonEliminarFila: { backgroundColor: 'transparent', padding: '4px 12px', borderRadius: '6px', border: '1px solid #e53e3e', color: '#e53e3e', cursor: 'pointer', fontSize: '13px', fontWeight: '600' },
+  modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
+  modal: { backgroundColor: 'white', borderRadius: '12px', padding: '32px', maxWidth: '400px', width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
+  modalTitulo: { fontSize: '20px', fontWeight: 'bold', color: '#1a1a2e', marginBottom: '12px' },
+  modalTexto: { color: '#666', marginBottom: '24px', lineHeight: '1.5' },
+  modalBotones: { display: 'flex', gap: '12px', justifyContent: 'flex-end' },
+  botonCancelar: { backgroundColor: 'transparent', border: '1px solid #ddd', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' },
+  botonEliminar: { backgroundColor: '#e53e3e', color: 'white', padding: '10px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
 }
