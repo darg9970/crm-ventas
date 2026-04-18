@@ -2,6 +2,35 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 
+function exportarExcel(ventas) {
+  const headers = [
+    'Asesor', 'Nombre', 'Cédula', 'Celular', 'Correo', 'Ciudad',
+    'Dirección', '# Cuenta', 'OT', 'Fecha Instalación', 'Franja',
+    'Estado Venta', 'Estado Comisión', 'Fecha Registro'
+  ]
+
+  const filas = ventas.map(v => [
+    v.usuarios?.nombre || v.nombre_asesor || 'Asesor eliminado',
+    v.nombre, v.cedula, v.celular, v.correo || '',
+    v.ciudad, v.direccion, v.numero_cuenta || '', v.ot || '',
+    v.fecha_instalacion || '', v.franja_horaria,
+    v.estado, v.estado_comision || '',
+    new Date(v.created_at).toLocaleDateString('es-CO')
+  ])
+
+  const csvContent = [headers, ...filas]
+    .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\n')
+
+  const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `ventas_${new Date().toISOString().slice(0, 10)}.csv`
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
 export default function Dashboard() {
   const { perfil, logout } = useAuth()
   const [ventas, setVentas] = useState([])
@@ -12,7 +41,7 @@ export default function Dashboard() {
   const [filtroEstado, setFiltroEstado] = useState('')
   const [filtroComision, setFiltroComision] = useState('')
   const [fechaDesde, setFechaDesde] = useState('')
-const [fechaHasta, setFechaHasta] = useState('')
+  const [fechaHasta, setFechaHasta] = useState('')
 
   useEffect(() => {
     cargarDatos()
@@ -20,7 +49,6 @@ const [fechaHasta, setFechaHasta] = useState('')
 
   async function cargarDatos() {
     setCargando(true)
-
     const { data: ventasData } = await supabase
       .from('ventas')
       .select('*, usuarios(nombre)')
@@ -49,33 +77,34 @@ const [fechaHasta, setFechaHasta] = useState('')
     }
   }
 
-const ventasFiltradas = ventas.filter(v => {
-  const coincideBusqueda =
-    v.nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
-    v.cedula?.includes(busqueda) ||
-    v.celular?.includes(busqueda) ||
-    v.ot?.toLowerCase().includes(busqueda.toLowerCase()) ||
-    v.numero_cuenta?.toLowerCase().includes(busqueda.toLowerCase())
-  const coincideAsesor = filtroAsesor ? v.asesor_id === filtroAsesor : true
-  const coincideEstado = filtroEstado ? v.estado === filtroEstado : true
-  const coincideComision = filtroComision ? v.estado_comision === filtroComision : true
+  const ventasFiltradas = ventas.filter(v => {
+    const coincideBusqueda =
+      v.nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
+      v.cedula?.includes(busqueda) ||
+      v.celular?.includes(busqueda) ||
+      v.ot?.toLowerCase().includes(busqueda.toLowerCase()) ||
+      v.numero_cuenta?.toLowerCase().includes(busqueda.toLowerCase())
+    const coincideAsesor = filtroAsesor ? v.asesor_id === filtroAsesor : true
+    const coincideEstado = filtroEstado ? v.estado === filtroEstado : true
+    const coincideComision = filtroComision ? v.estado_comision === filtroComision : true
+    const fecha = new Date(v.created_at)
+    const desde = fechaDesde ? new Date(fechaDesde) : null
+    const hasta = fechaHasta ? new Date(fechaHasta + 'T23:59:59') : null
+    const coincideFecha = (!desde || fecha >= desde) && (!hasta || fecha <= hasta)
+    return coincideBusqueda && coincideAsesor && coincideEstado && coincideComision && coincideFecha
+  })
 
-  const fecha = new Date(v.created_at)
-  const desde = fechaDesde ? new Date(fechaDesde) : null
-  const hasta = fechaHasta ? new Date(fechaHasta + 'T23:59:59') : null
-  const coincideFecha =
-    (!desde || fecha >= desde) &&
-    (!hasta || fecha <= hasta)
-
-  return coincideBusqueda && coincideAsesor && coincideEstado && coincideComision && coincideFecha
-})
-
-  // Métricas
-  const totalVentas = ventasFiltradas.length
-  const instaladas = ventasFiltradas.filter(v => v.estado === 'Instalada').length
-  const pendientesLegalizar = ventasFiltradas.filter(v => v.estado_comision === 'Pendiente de legalizar').length
-  const pendientesPagar = ventasFiltradas.filter(v => v.estado_comision === 'Pendiente de pagar').length
-  const pagadas = ventasFiltradas.filter(v => v.estado_comision === 'Pagado al asesor').length
+  // Resumen por asesor
+  const resumenPorAsesor = asesores.map(a => {
+    const ventasAsesor = ventasFiltradas.filter(v => v.asesor_id === a.id)
+    return {
+      nombre: a.nombre,
+      total: ventasAsesor.length,
+      instaladas: ventasAsesor.filter(v => v.estado === 'Instalada').length,
+      pendientePagar: ventasAsesor.filter(v => v.estado_comision === 'Pendiente de pagar').length,
+      pagadas: ventasAsesor.filter(v => v.estado_comision === 'Pagado al asesor').length,
+    }
+  }).filter(a => a.total > 0)
 
   const estadoColor = {
     'Pendiente': '#f6ad55',
@@ -98,95 +127,152 @@ const ventasFiltradas = ventas.filter(v => {
           <h1 style={styles.titulo}>Dashboard Coordinador</h1>
           <p style={styles.subtitulo}>Bienvenido, {perfil?.nombre}</p>
         </div>
-        <button onClick={() => window.location.href='/asesores'} style={styles.botonNav}>
-  👥 Asesores
-</button>
-<button onClick={() => window.location.href='/whatsapp'} style={styles.botonNav}>
-  📱 WhatsApp
-</button>
-        <button onClick={logout} style={styles.botonCerrar}>Cerrar sesión</button>
+        <div style={styles.headerBotones}>
+          <button onClick={() => window.location.href='/asesores'} style={styles.botonNav}>
+            👥 Asesores
+          </button>
+          <button onClick={() => window.location.href='/whatsapp'} style={styles.botonNav}>
+            📱 WhatsApp
+          </button>
+          <button onClick={logout} style={styles.botonCerrar}>Cerrar sesión</button>
+        </div>
       </div>
 
-      {/* Métricas */}
+      {/* Métricas generales */}
       <div style={styles.metricas}>
         <div style={styles.metricaCard}>
-          <p style={styles.metricaNumero}>{totalVentas}</p>
+          <p style={styles.metricaNumero}>{ventasFiltradas.length}</p>
           <p style={styles.metricaLabel}>Total ventas</p>
         </div>
         <div style={styles.metricaCard}>
-          <p style={{...styles.metricaNumero, color: '#38a169'}}>{instaladas}</p>
+          <p style={{...styles.metricaNumero, color: '#38a169'}}>
+            {ventasFiltradas.filter(v => v.estado === 'Instalada').length}
+          </p>
           <p style={styles.metricaLabel}>Instaladas</p>
         </div>
         <div style={styles.metricaCard}>
-          <p style={{...styles.metricaNumero, color: '#e53e3e'}}>{pendientesLegalizar}</p>
+          <p style={{...styles.metricaNumero, color: '#e53e3e'}}>
+            {ventasFiltradas.filter(v => v.estado_comision === 'Pendiente de legalizar').length}
+          </p>
           <p style={styles.metricaLabel}>Pend. legalizar</p>
         </div>
         <div style={styles.metricaCard}>
-          <p style={{...styles.metricaNumero, color: '#d69e2e'}}>{pendientesPagar}</p>
+          <p style={{...styles.metricaNumero, color: '#d69e2e'}}>
+            {ventasFiltradas.filter(v => v.estado_comision === 'Pendiente de pagar').length}
+          </p>
           <p style={styles.metricaLabel}>Pend. pagar</p>
         </div>
         <div style={styles.metricaCard}>
-          <p style={{...styles.metricaNumero, color: '#3182ce'}}>{pagadas}</p>
+          <p style={{...styles.metricaNumero, color: '#3182ce'}}>
+            {ventasFiltradas.filter(v => v.estado_comision === 'Pagado al asesor').length}
+          </p>
           <p style={styles.metricaLabel}>Pagadas</p>
         </div>
       </div>
 
-      {/* Filtros */}
+      {/* Resumen por asesor */}
+      {resumenPorAsesor.length > 0 && (
+        <div style={styles.card}>
+          <h2 style={styles.subtituloCard}>📊 Resumen por asesor</h2>
+          <div style={styles.tablaWrapper}>
+            <table style={styles.tabla}>
+              <thead>
+                <tr style={styles.thead}>
+                  <th style={styles.th}>Asesor</th>
+                  <th style={styles.th}>Total ventas</th>
+                  <th style={styles.th}>Instaladas</th>
+                  <th style={styles.th}>Pend. pagar</th>
+                  <th style={styles.th}>Pagadas</th>
+                </tr>
+              </thead>
+              <tbody>
+                {resumenPorAsesor.map((a, i) => (
+                  <tr key={i} style={styles.tr}>
+                    <td style={{...styles.td, fontWeight: '600'}}>{a.nombre}</td>
+                    <td style={styles.td}>
+                      <span style={{...styles.badge, backgroundColor: '#e2e8f0'}}>
+                        {a.total}
+                      </span>
+                    </td>
+                    <td style={styles.td}>
+                      <span style={{...styles.badge, backgroundColor: '#68d391'}}>
+                        {a.instaladas}
+                      </span>
+                    </td>
+                    <td style={styles.td}>
+                      <span style={{...styles.badge, backgroundColor: '#f6ad55'}}>
+                        {a.pendientePagar}
+                      </span>
+                    </td>
+                    <td style={styles.td}>
+                      <span style={{...styles.badge, backgroundColor: '#68d391'}}>
+                        {a.pagadas}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Filtros y tabla detallada */}
       <div style={styles.card}>
+        <div style={styles.filtrosHeader}>
+          <h2 style={styles.subtituloCard}>📋 Detalle de ventas</h2>
+          <button
+            onClick={() => exportarExcel(ventasFiltradas)}
+            style={styles.botonExcel}>
+            ⬇️ Exportar CSV
+          </button>
+        </div>
+
         <div style={styles.filtros}>
-  <input
-    style={styles.input}
-    placeholder="🔍 Buscar por nombre, cédula, celular, OT o # cuenta..."
-    value={busqueda}
-    onChange={e => setBusqueda(e.target.value)}
-  />
-  <select style={styles.input} value={filtroAsesor} onChange={e => setFiltroAsesor(e.target.value)}>
-    <option value="">Todos los asesores</option>
-    {asesores.map(a => (
-      <option key={a.id} value={a.id}>{a.nombre}</option>
-    ))}
-  </select>
-  <select style={styles.input} value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}>
-    <option value="">Todos los estados</option>
-    <option>Pendiente</option>
-    <option>En proceso</option>
-    <option>Instalada</option>
-    <option>Cancelada</option>
-  </select>
-  <select style={styles.input} value={filtroComision} onChange={e => setFiltroComision(e.target.value)}>
-    <option value="">Todas las comisiones</option>
-    <option>Pendiente de legalizar</option>
-    <option>Pendiente de pagar</option>
-    <option>Pagado al asesor</option>
-  </select>
-
-  {/* Filtros de fecha */}
-  <div style={styles.campoFecha}>
-    <label style={styles.labelFecha}>Desde</label>
-    <input
-      type="date"
-      style={styles.input}
-      value={fechaDesde}
-      onChange={e => setFechaDesde(e.target.value)}
-    />
-  </div>
-  <div style={styles.campoFecha}>
-    <label style={styles.labelFecha}>Hasta</label>
-    <input
-      type="date"
-      style={styles.input}
-      value={fechaHasta}
-      onChange={e => setFechaHasta(e.target.value)}
-    />
-  </div>
-
-  <button
-    onClick={() => { setBusqueda(''); setFiltroAsesor(''); setFiltroEstado(''); setFiltroComision(''); setFechaDesde(''); setFechaHasta('') }}
-    style={styles.botonLimpiar}
-  >
-    🗑️ Limpiar filtros
-  </button>
-</div>
+          <input
+            style={styles.input}
+            placeholder="🔍 Buscar nombre, cédula, celular, OT o # cuenta..."
+            value={busqueda}
+            onChange={e => setBusqueda(e.target.value)}
+          />
+          <select style={styles.input} value={filtroAsesor} onChange={e => setFiltroAsesor(e.target.value)}>
+            <option value="">Todos los asesores</option>
+            {asesores.map(a => (
+              <option key={a.id} value={a.id}>{a.nombre}</option>
+            ))}
+          </select>
+          <select style={styles.input} value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}>
+            <option value="">Todos los estados</option>
+            <option>Pendiente</option>
+            <option>En proceso</option>
+            <option>Instalada</option>
+            <option>Cancelada</option>
+          </select>
+          <select style={styles.input} value={filtroComision} onChange={e => setFiltroComision(e.target.value)}>
+            <option value="">Todas las comisiones</option>
+            <option>Pendiente de legalizar</option>
+            <option>Pendiente de pagar</option>
+            <option>Pagado al asesor</option>
+          </select>
+          <div style={styles.campoFecha}>
+            <label style={styles.labelFecha}>Desde</label>
+            <input type="date" style={styles.input} value={fechaDesde}
+              onChange={e => setFechaDesde(e.target.value)} />
+          </div>
+          <div style={styles.campoFecha}>
+            <label style={styles.labelFecha}>Hasta</label>
+            <input type="date" style={styles.input} value={fechaHasta}
+              onChange={e => setFechaHasta(e.target.value)} />
+          </div>
+          <button
+            onClick={() => {
+              setBusqueda(''); setFiltroAsesor(''); setFiltroEstado('')
+              setFiltroComision(''); setFechaDesde(''); setFechaHasta('')
+            }}
+            style={styles.botonLimpiar}>
+            🗑️ Limpiar
+          </button>
+        </div>
 
         {cargando ? (
           <p style={{textAlign: 'center', color: '#666', padding: '40px'}}>Cargando ventas...</p>
@@ -241,8 +327,7 @@ const ventasFiltradas = ventas.filter(v => {
                         style={{
                           ...styles.selectComision,
                           backgroundColor: comisionColor[v.estado_comision] || '#e2e8f0'
-                        }}
-                      >
+                        }}>
                         <option>Pendiente de legalizar</option>
                         <option>Pendiente de pagar</option>
                         <option>Pagado al asesor</option>
@@ -264,18 +349,22 @@ const styles = {
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' },
   titulo: { fontSize: '24px', fontWeight: 'bold', color: '#1a1a2e' },
   subtitulo: { color: '#666', fontSize: '14px', marginTop: '4px' },
+  subtituloCard: { fontSize: '18px', fontWeight: '600', color: '#1a1a2e', margin: 0 },
+  headerBotones: { display: 'flex', gap: '12px' },
   botonNav: { backgroundColor: '#4f46e5', color: 'white', padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
   botonCerrar: { backgroundColor: 'transparent', border: '1px solid #ddd', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' },
   metricas: { display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px', marginBottom: '24px' },
   metricaCard: { backgroundColor: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.08)', textAlign: 'center' },
   metricaNumero: { fontSize: '36px', fontWeight: 'bold', color: '#1a1a2e', margin: '0' },
   metricaLabel: { color: '#666', fontSize: '13px', marginTop: '4px' },
-  card: { backgroundColor: 'white', borderRadius: '12px', padding: '24px', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' },
+  card: { backgroundColor: 'white', borderRadius: '12px', padding: '24px', boxShadow: '0 2px 12px rgba(0,0,0,0.08)', marginBottom: '24px' },
+  filtrosHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
+  botonExcel: { backgroundColor: '#38a169', color: 'white', padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
   filtros: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '24px' },
- campoFecha: { display: 'flex', flexDirection: 'column', gap: '4px' },
- labelFecha: { fontSize: '12px', fontWeight: '600', color: '#666' },
- botonLimpiar: { padding: '10px 14px', borderRadius: '8px', border: '1px solid #ddd', backgroundColor: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: '600', color: '#666' },
   input: { padding: '10px 14px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '14px', outline: 'none', backgroundColor: 'white' },
+  campoFecha: { display: 'flex', flexDirection: 'column', gap: '4px' },
+  labelFecha: { fontSize: '12px', fontWeight: '600', color: '#666' },
+  botonLimpiar: { padding: '10px 14px', borderRadius: '8px', border: '1px solid #ddd', backgroundColor: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: '600', color: '#666' },
   tablaWrapper: { overflowX: 'auto' },
   tabla: { width: '100%', borderCollapse: 'collapse', fontSize: '13px' },
   thead: { backgroundColor: '#f7fafc' },
