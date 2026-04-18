@@ -59,16 +59,19 @@ export default function WhatsApp() {
             c.lastMessage && !c.lastMessage.key?.fromMe
           )
 
-          const sinResponderConTiempo = sinResponder
-            .map(c => {
-              const minutos = Math.round((ahora / 1000 - c.lastMessage.messageTimestamp) / 60)
-              return minutos
-            })
-            .filter(t => t > 0 && t < 480)
+          // Tiempo de respuesta: cuánto tardó el asesor en responder el último mensaje
+          const chatsRespondidos = chats
+            .filter(c => c.lastMessage?.key?.fromMe && c.lastMessage?.messageTimestamp)
+            .sort((a, b) => b.lastMessage.messageTimestamp - a.lastMessage.messageTimestamp)
 
-          const tiempoPromedio = sinResponderConTiempo.length > 0
-            ? Math.round(sinResponderConTiempo.reduce((a, b) => a + b, 0) / sinResponderConTiempo.length)
-            : null
+          let tiempoPromedio = null
+          if (chatsRespondidos.length > 0) {
+            const tsUltimaRespuesta = chatsRespondidos[0].lastMessage.messageTimestamp
+            const minutosDesdeRespuesta = Math.round((ahora / 1000 - tsUltimaRespuesta) / 60)
+            if (minutosDesdeRespuesta >= 0 && minutosDesdeRespuesta < 480) {
+              tiempoPromedio = minutosDesdeRespuesta
+            }
+          }
 
           return {
             ...a,
@@ -142,9 +145,9 @@ export default function WhatsApp() {
                   </div>
                   <div style={styles.metrica}>
                     <p style={{...styles.metricaNumero, color: '#4f46e5'}}>
-                      {m.tiempoPromedio ? `${m.tiempoPromedio}m` : 'N/A'}
+                      {m.tiempoPromedio !== null ? `${m.tiempoPromedio}m` : 'N/A'}
                     </p>
-                    <p style={styles.metricaLabel}>Espera prom.</p>
+                    <p style={styles.metricaLabel}>Última resp.</p>
                   </div>
                 </div>
               ) : (
