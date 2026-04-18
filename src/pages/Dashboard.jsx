@@ -101,6 +101,9 @@ const ventasFiltradas = ventas.filter(v => {
         <button onClick={() => window.location.href='/asesores'} style={styles.botonNav}>
   👥 Asesores
 </button>
+<button onClick={() => window.location.href='/whatsapp'} style={styles.botonNav}>
+  📱 WhatsApp
+</button>
         <button onClick={logout} style={styles.botonCerrar}>Cerrar sesión</button>
       </div>
 

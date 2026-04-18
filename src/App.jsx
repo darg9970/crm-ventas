@@ -4,6 +4,7 @@ import Login from './pages/Login'
 import Ventas from './pages/Ventas'
 import Dashboard from './pages/Dashboard'
 import Asesores from './pages/Asesores'
+import WhatsApp from './pages/WhatsApp'
 
 function RutaProtegida({ children, rol }) {
   const { user, perfil, loading } = useAuth()
@@ -30,6 +31,11 @@ function App() {
         } />
         <Route path="/asesores" element={
   <RutaProtegida rol="coordinador">
+    <Route path="/whatsapp" element={
+  <RutaProtegida rol="coordinador">
+    <WhatsApp />
+  </RutaProtegida>
+} />
     <Asesores />
   </RutaProtegida>
 } />
