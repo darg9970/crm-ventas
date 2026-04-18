@@ -55,9 +55,9 @@ export default function WhatsApp() {
 
           // Excluir grupos (@g.us)
           const chatsSolo = todosChats.filter(c => {
-            const id = c.id || c.remoteJid || ''
-            return !id.includes('@g.us')
-          })
+  const id = c.remoteJid || c.id || ''
+  return !id.includes('@g.us') && !id.includes('-')
+})
 
           const ahora = Date.now()
           const hace24h = ahora - 24 * 60 * 60 * 1000
