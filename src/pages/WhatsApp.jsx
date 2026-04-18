@@ -43,77 +43,89 @@ export default function WhatsApp() {
   }, [fechaSeleccionada])
 
   async function cargarMetricas() {
-    setCargando(true)
+  setCargando(true)
 
-    const inicioDia = new Date(fechaSeleccionada + 'T00:00:00').getTime()
-    const finDia = new Date(fechaSeleccionada + 'T23:59:59').getTime()
+  const inicioDia = new Date(fechaSeleccionada + 'T00:00:00').getTime()
+  const finDia = new Date(fechaSeleccionada + 'T23:59:59').getTime()
 
-    const resultados = await Promise.all(
-      INSTANCIAS.map(async (a) => {
-        try {
-          const data = await fetchConReintento(a.instancia)
-          const todosChats = Array.isArray(data.chats) ? data.chats : []
-          const instancias = Array.isArray(data.instancias) ? data.instancias : []
-          const instanciaInfo = instancias.find(i => i.name === a.instancia)
-
-          const chatsSolo = todosChats.filter(c => {
-            const id = c.remoteJid || c.id || ''
-            return !id.includes('@g.us') && !id.includes('-')
-          })
-
-          const ahora = Date.now()
-          const hace24h = ahora - 24 * 60 * 60 * 1000
-
-          const chatsDia = chatsSolo.filter(c => {
-            const ts = c.lastMessage?.messageTimestamp
-            if (!ts) return false
-            const t = ts * 1000
-            return t >= inicioDia && t <= finDia
-          })
-
-          const chatsHoy = chatsSolo.filter(c => {
-            const ts = c.lastMessage?.messageTimestamp
-            return ts && (ts * 1000) > hace24h
-          })
-
-          const sinResponder = chatsDia.filter(c =>
-            c.lastMessage && !c.lastMessage.key?.fromMe
-          )
-
-          const mensajesEnviados = chatsDia.filter(c =>
-            c.lastMessage?.key?.fromMe
-          ).length
-
-          const chatsRespondidos = chatsDia
-            .filter(c => c.lastMessage?.key?.fromMe && c.lastMessage?.messageTimestamp)
-            .sort((a, b) => b.lastMessage.messageTimestamp - a.lastMessage.messageTimestamp)
-
-          let tiempoUltimaResp = null
-          if (chatsRespondidos.length > 0) {
-            const ts = chatsRespondidos[0].lastMessage.messageTimestamp
-            const minutos = Math.round((ahora / 1000 - ts) / 60)
-            if (minutos >= 0 && minutos < 1440) tiempoUltimaResp = minutos
-          }
-
-          return {
-            ...a,
-            estado: instanciaInfo?.connectionStatus || 'unknown',
-            chatsDia: chatsDia.length,
-            chatsHoy: chatsHoy.length,
-            sinResponder: sinResponder.length,
-            mensajesEnviados,
-            tiempoUltimaResp,
-            ok: true
-          }
-        } catch (err) {
-          return { ...a, ok: false, error: err.message }
-        }
-      })
-    )
-    setMetricas(resultados)
-    setUltimaActualizacion(new Date().toLocaleTimeString('es-CO'))
-    setCargando(false)
+  // Obtener instancias una sola vez para todas
+  let todasInstancias = []
+  try {
+    const { data: instData } = await supabase.functions.invoke('whatsapp-metricas', {
+      body: { instancia: INSTANCIAS[0].instancia, soloInstancias: true }
+    })
+    todasInstancias = Array.isArray(instData?.instancias) ? instData.instancias : []
+  } catch (e) {
+    console.log('Error cargando instancias:', e)
   }
+
+  const resultados = await Promise.all(
+    INSTANCIAS.map(async (a) => {
+      try {
+        const data = await fetchConReintento(a.instancia)
+        const todosChats = Array.isArray(data.chats) ? data.chats : []
+
+        // Buscar estado en instancias ya cargadas
+        const instanciaInfo = todasInstancias.find(i => i.name === a.instancia)
+
+        const chatsSolo = todosChats.filter(c => {
+          const id = c.remoteJid || c.id || ''
+          return !id.includes('@g.us') && !id.includes('-')
+        })
+
+        const ahora = Date.now()
+        const hace24h = ahora - 24 * 60 * 60 * 1000
+
+        const chatsDia = chatsSolo.filter(c => {
+          const ts = c.lastMessage?.messageTimestamp
+          if (!ts) return false
+          const t = ts * 1000
+          return t >= inicioDia && t <= finDia
+        })
+
+        const chatsHoy = chatsSolo.filter(c => {
+          const ts = c.lastMessage?.messageTimestamp
+          return ts && (ts * 1000) > hace24h
+        })
+
+        const sinResponder = chatsDia.filter(c =>
+          c.lastMessage && !c.lastMessage.key?.fromMe
+        )
+
+        const mensajesEnviados = chatsDia.filter(c =>
+          c.lastMessage?.key?.fromMe
+        ).length
+
+        const chatsRespondidos = chatsDia
+          .filter(c => c.lastMessage?.key?.fromMe && c.lastMessage?.messageTimestamp)
+          .sort((a, b) => b.lastMessage.messageTimestamp - a.lastMessage.messageTimestamp)
+
+        let tiempoUltimaResp = null
+        if (chatsRespondidos.length > 0) {
+          const ts = chatsRespondidos[0].lastMessage.messageTimestamp
+          const minutos = Math.round((ahora / 1000 - ts) / 60)
+          if (minutos >= 0 && minutos < 1440) tiempoUltimaResp = minutos
+        }
+
+        return {
+          ...a,
+          estado: instanciaInfo?.connectionStatus || 'unknown',
+          chatsDia: chatsDia.length,
+          chatsHoy: chatsHoy.length,
+          sinResponder: sinResponder.length,
+          mensajesEnviados,
+          tiempoUltimaResp,
+          ok: true
+        }
+      } catch (err) {
+        return { ...a, ok: false, error: err.message }
+      }
+    })
+  )
+  setMetricas(resultados)
+  setUltimaActualizacion(new Date().toLocaleTimeString('es-CO'))
+  setCargando(false)
+}
 
   const esDiaActual = fechaSeleccionada === hoy
 
