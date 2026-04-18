@@ -48,25 +48,13 @@ export default function WhatsApp() {
   const inicioDia = new Date(fechaSeleccionada + 'T00:00:00').getTime()
   const finDia = new Date(fechaSeleccionada + 'T23:59:59').getTime()
 
-  // Obtener instancias una sola vez para todas
-  let todasInstancias = []
-  try {
-    const { data: instData } = await supabase.functions.invoke('whatsapp-metricas', {
-      body: { instancia: INSTANCIAS[0].instancia, soloInstancias: true }
-    })
-    todasInstancias = Array.isArray(instData?.instancias) ? instData.instancias : []
-  } catch (e) {
-    console.log('Error cargando instancias:', e)
-  }
-
   const resultados = await Promise.all(
     INSTANCIAS.map(async (a) => {
       try {
         const data = await fetchConReintento(a.instancia)
         const todosChats = Array.isArray(data.chats) ? data.chats : []
-
-        // Buscar estado en instancias ya cargadas
-        const instanciaInfo = todasInstancias.find(i => i.name === a.instancia)
+        const instancias = Array.isArray(data.instancias) ? data.instancias : []
+        const instanciaInfo = instancias.find(i => i.name === a.instancia)
 
         const chatsSolo = todosChats.filter(c => {
           const id = c.remoteJid || c.id || ''
@@ -107,9 +95,13 @@ export default function WhatsApp() {
           if (minutos >= 0 && minutos < 1440) tiempoUltimaResp = minutos
         }
 
+        // Estado: si tiene chats cargados, está conectado
+        const estado = instanciaInfo?.connectionStatus ||
+          (todosChats.length > 0 ? 'open' : 'unknown')
+
         return {
           ...a,
-          estado: instanciaInfo?.connectionStatus || 'unknown',
+          estado,
           chatsDia: chatsDia.length,
           chatsHoy: chatsHoy.length,
           sinResponder: sinResponder.length,
