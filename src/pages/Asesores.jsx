@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase, supabaseAdmin } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 
 export default function Asesores() {
@@ -82,38 +82,20 @@ export default function Asesores() {
     setEnviando(true)
     setMensaje(null)
 
-    const { data: { session } } = await supabase.auth.getSession()
-
-    const response = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/swift-service`,
-      {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({ userId: asesor.id })
-      }
-    )
-
-    const result = await response.json()
-
-    if (result.error) {
-      // Si la edge function no soporta DELETE, eliminamos solo el perfil
-      const { error } = await supabase
+    try {
+      const { error: perfilError } = await supabase
         .from('usuarios')
         .delete()
         .eq('id', asesor.id)
 
-      if (error) {
-        setMensaje({ tipo: 'error', texto: 'Error al eliminar asesor.' })
+      if (perfilError) {
+        setMensaje({ tipo: 'error', texto: 'Error al eliminar: ' + perfilError.message })
       } else {
         setMensaje({ tipo: 'exito', texto: '✅ Asesor eliminado correctamente.' })
         setAsesores(prev => prev.filter(a => a.id !== asesor.id))
       }
-    } else {
-      setMensaje({ tipo: 'exito', texto: '✅ Asesor eliminado correctamente.' })
-      setAsesores(prev => prev.filter(a => a.id !== asesor.id))
+    } catch (err) {
+      setMensaje({ tipo: 'error', texto: 'Error inesperado: ' + err.message })
     }
 
     setConfirmEliminar(null)
@@ -214,7 +196,7 @@ export default function Asesores() {
         <h2 style={styles.subtituloCard}>Asesores registrados ({asesores.length})</h2>
 
         {mensaje && !mostrarForm && (
-          <p style={{...( mensaje.tipo === 'exito' ? styles.exito : styles.error), marginBottom: '16px'}}>
+          <p style={{...(mensaje.tipo === 'exito' ? styles.exito : styles.error), marginBottom: '16px'}}>
             {mensaje.texto}
           </p>
         )}
