@@ -8,6 +8,23 @@ const INSTANCIAS = [
   { nombre: 'Luisa ramirez', instancia: 'Luisa ramirez', telefono: '573115918611' },
 ]
 
+async function fetchConReintento(instancia, intentos = 3) {
+  for (let i = 0; i < intentos; i++) {
+    try {
+      const { data, error } = await supabase.functions.invoke('whatsapp-metricas', {
+        body: { instancia }
+      })
+      if (error) throw error
+      if (data?.chats && Array.isArray(data.chats) && data.chats.length > 0) return data
+      await new Promise(r => setTimeout(r, 1000))
+    } catch (e) {
+      if (i === intentos - 1) throw e
+      await new Promise(r => setTimeout(r, 1000))
+    }
+  }
+  return { chats: [], instancias: [] }
+}
+
 export default function WhatsApp() {
   const { perfil, logout } = useAuth()
   const [metricas, setMetricas] = useState([])
@@ -25,15 +42,10 @@ export default function WhatsApp() {
     const resultados = await Promise.all(
       INSTANCIAS.map(async (a) => {
         try {
-          const { data, error } = await supabase.functions.invoke('whatsapp-metricas', {
-            body: { instancia: a.instancia }
-          })
-
-          if (error) throw error
-
+          const data = await fetchConReintento(a.instancia)
           const chats = Array.isArray(data.chats) ? data.chats : []
           const instancias = Array.isArray(data.instancias) ? data.instancias : []
-          const instanciaInfo = instancias.find(i => i.instance?.instanceName === a.instancia)
+          const instanciaInfo = instancias.find(i => i.name === a.instancia)
 
           const ahora = Date.now()
           const hace24h = ahora - 24 * 60 * 60 * 1000
@@ -43,26 +55,24 @@ export default function WhatsApp() {
             return ultimo && (ultimo * 1000) > hace24h
           })
 
-          const sinResponder = chats.filter(c => {
-            const ultimo = c.lastMessage
-            return ultimo && !ultimo.key?.fromMe
-          })
+          const sinResponder = chats.filter(c =>
+            c.lastMessage && !c.lastMessage.key?.fromMe
+          )
 
-          const sinResponderConTiempo = chats
-  .filter(c => c.lastMessage && !c.lastMessage.key?.fromMe)
-  .map(c => {
-    const minutos = Math.round((ahora / 1000 - c.lastMessage.messageTimestamp) / 60)
-    return minutos
-  })
-  .filter(t => t < 480)
+          const sinResponderConTiempo = sinResponder
+            .map(c => {
+              const minutos = Math.round((ahora / 1000 - c.lastMessage.messageTimestamp) / 60)
+              return minutos
+            })
+            .filter(t => t > 0 && t < 480)
 
-const tiempoPromedio = sinResponderConTiempo.length > 0
-  ? Math.round(sinResponderConTiempo.reduce((a, b) => a + b, 0) / sinResponderConTiempo.length)
-  : null
+          const tiempoPromedio = sinResponderConTiempo.length > 0
+            ? Math.round(sinResponderConTiempo.reduce((a, b) => a + b, 0) / sinResponderConTiempo.length)
+            : null
 
           return {
             ...a,
-            estado: instanciaInfo?.instance?.state || 'unknown',
+            estado: instanciaInfo?.connectionStatus || 'unknown',
             totalChats: chats.length,
             chatsHoy: chatsHoy.length,
             sinResponder: sinResponder.length,
@@ -78,14 +88,6 @@ const tiempoPromedio = sinResponderConTiempo.length > 0
     setUltimaActualizacion(new Date().toLocaleTimeString('es-CO'))
     setCargando(false)
   }
-
-  const estadoColor = {
-  open: '#68d391',
-  connected: '#68d391',
-  connecting: '#68d391',
-  close: '#fc8181',
-  unknown: '#f6ad55'
-}
 
   return (
     <div style={styles.container}>
@@ -115,10 +117,10 @@ const tiempoPromedio = sinResponderConTiempo.length > 0
                   <p style={styles.telefono}>+{m.telefono}</p>
                 </div>
                 <span style={{
-                  ...styles.estado,
-                  backgroundColor: estadoColor[m.estado] || '#f6ad55'
+                  ...styles.estadoBadge,
+                  backgroundColor: m.estado === 'open' ? '#68d391' : '#fc8181'
                 }}>
-                  {m.estado !== 'close' && m.estado !== 'unknown' ? '🟢 Conectado' : '🔴 Desconectado'}
+                  {m.estado === 'open' ? '🟢 Conectado' : '🔴 Desconectado'}
                 </span>
               </div>
 
@@ -142,7 +144,7 @@ const tiempoPromedio = sinResponderConTiempo.length > 0
                     <p style={{...styles.metricaNumero, color: '#4f46e5'}}>
                       {m.tiempoPromedio ? `${m.tiempoPromedio}m` : 'N/A'}
                     </p>
-                    <p style={styles.metricaLabel}>T. respuesta</p>
+                    <p style={styles.metricaLabel}>Espera prom.</p>
                   </div>
                 </div>
               ) : (
@@ -168,7 +170,7 @@ const styles = {
   cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' },
   nombre: { fontSize: '18px', fontWeight: 'bold', color: '#1a1a2e', margin: 0 },
   telefono: { color: '#666', fontSize: '13px', marginTop: '4px' },
-  estado: { padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '600' },
+  estadoBadge: { padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '600' },
   metricas: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' },
   metrica: { textAlign: 'center', backgroundColor: '#f7fafc', borderRadius: '8px', padding: '12px' },
   metricaNumero: { fontSize: '28px', fontWeight: 'bold', color: '#1a1a2e', margin: 0 },
