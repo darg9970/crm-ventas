@@ -54,7 +54,6 @@ export default function WhatsApp() {
           const instancias = Array.isArray(data.instancias) ? data.instancias : []
           const instanciaInfo = instancias.find(i => i.name === a.instancia)
 
-          // Excluir grupos
           const chatsSolo = todosChats.filter(c => {
             const id = c.remoteJid || c.id || ''
             return !id.includes('@g.us') && !id.includes('-')
@@ -63,7 +62,6 @@ export default function WhatsApp() {
           const ahora = Date.now()
           const hace24h = ahora - 24 * 60 * 60 * 1000
 
-          // Chats con actividad en el día seleccionado
           const chatsDia = chatsSolo.filter(c => {
             const ts = c.lastMessage?.messageTimestamp
             if (!ts) return false
@@ -71,23 +69,19 @@ export default function WhatsApp() {
             return t >= inicioDia && t <= finDia
           })
 
-          // Chats hoy (siempre el día actual)
           const chatsHoy = chatsSolo.filter(c => {
             const ts = c.lastMessage?.messageTimestamp
             return ts && (ts * 1000) > hace24h
           })
 
-          // Sin responder en el día seleccionado
           const sinResponder = chatsDia.filter(c =>
             c.lastMessage && !c.lastMessage.key?.fromMe
           )
 
-          // Mensajes enviados en el día seleccionado
           const mensajesEnviados = chatsDia.filter(c =>
             c.lastMessage?.key?.fromMe
           ).length
 
-          // Última respuesta
           const chatsRespondidos = chatsDia
             .filter(c => c.lastMessage?.key?.fromMe && c.lastMessage?.messageTimestamp)
             .sort((a, b) => b.lastMessage.messageTimestamp - a.lastMessage.messageTimestamp)
@@ -142,6 +136,9 @@ export default function WhatsApp() {
             max={hoy}
             onChange={e => setFechaSeleccionada(e.target.value)}
           />
+          <button onClick={() => window.location.href='/dashboard'} style={styles.botonNav}>
+            ← Dashboard
+          </button>
           <button onClick={logout} style={styles.botonCerrar}>Cerrar sesión</button>
         </div>
       </div>
@@ -210,6 +207,7 @@ const styles = {
   titulo: { fontSize: '24px', fontWeight: 'bold', color: '#1a1a2e' },
   subtitulo: { color: '#666', fontSize: '14px', marginTop: '4px' },
   inputFecha: { padding: '8px 14px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '14px', cursor: 'pointer' },
+  botonNav: { backgroundColor: '#4f46e5', color: 'white', padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
   botonCerrar: { backgroundColor: 'transparent', border: '1px solid #ddd', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' },
   cargando: { textAlign: 'center', padding: '60px', color: '#666', fontSize: '18px' },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '20px' },
