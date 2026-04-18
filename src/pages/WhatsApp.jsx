@@ -6,7 +6,6 @@ const INSTANCIAS = [
   { nombre: 'Khristian Ramirez', instancia: 'Khristian Ramirez', telefono: '573133536525' },
   { nombre: 'Nidia Gomez', instancia: 'Nidia Gomez', telefono: '573219180250' },
   { nombre: 'Luisa ramirez', instancia: 'Luisa ramirez', telefono: '573115918611' },
-  { nombre: 'Catalina Duarte', instancia: 'Catalina Duarte', telefono: 'SIN DATOS' },
 ]
 
 async function fetchConReintento(instancia, intentos = 3) {
@@ -94,12 +93,9 @@ export default function WhatsApp() {
             if (minutos >= 0 && minutos < 1440) tiempoUltimaResp = minutos
           }
 
-          const estado = instanciaInfo?.connectionStatus ||
-            (todosChats.length > 0 ? 'open' : 'unknown')
-
           return {
             ...a,
-            estado,
+            estado: instanciaInfo?.connectionStatus || 'unknown',
             chatsDia: chatsDia.length,
             chatsHoy: chatsHoy.length,
             sinResponder: sinResponder.length,
@@ -108,8 +104,7 @@ export default function WhatsApp() {
             ok: true
           }
         } catch (err) {
-          const ultimo = metricas.find(m => m.instancia === a.instancia)
-          return ultimo || { ...a, ok: false, error: err.message }
+          return { ...a, ok: false, error: err.message }
         }
       })
     )
