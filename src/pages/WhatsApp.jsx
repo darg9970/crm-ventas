@@ -30,37 +30,56 @@ export default function WhatsApp() {
   const [metricas, setMetricas] = useState([])
   const [cargando, setCargando] = useState(true)
   const [ultimaActualizacion, setUltimaActualizacion] = useState(null)
+  const [mesSeleccionado, setMesSeleccionado] = useState(new Date().toISOString().slice(0, 7))
 
   useEffect(() => {
     cargarMetricas()
     const intervalo = setInterval(cargarMetricas, 60000)
     return () => clearInterval(intervalo)
-  }, [])
+  }, [mesSeleccionado])
 
   async function cargarMetricas() {
     setCargando(true)
+
+    const [anio, mes] = mesSeleccionado.split('-').map(Number)
+    const inicioMes = new Date(anio, mes - 1, 1).getTime()
+    const finMes = new Date(anio, mes, 0, 23, 59, 59).getTime()
+
     const resultados = await Promise.all(
       INSTANCIAS.map(async (a) => {
         try {
           const data = await fetchConReintento(a.instancia)
-          const chats = Array.isArray(data.chats) ? data.chats : []
+          const todosChats = Array.isArray(data.chats) ? data.chats : []
           const instancias = Array.isArray(data.instancias) ? data.instancias : []
           const instanciaInfo = instancias.find(i => i.name === a.instancia)
+
+          // Excluir grupos (@g.us)
+          const chatsSolo = todosChats.filter(c => {
+            const id = c.id || c.remoteJid || ''
+            return !id.includes('@g.us')
+          })
 
           const ahora = Date.now()
           const hace24h = ahora - 24 * 60 * 60 * 1000
 
-          const chatsHoy = chats.filter(c => {
+          // Filtrar por mes seleccionado
+          const chatsMes = chatsSolo.filter(c => {
+            const ts = c.lastMessage?.messageTimestamp
+            if (!ts) return false
+            const t = ts * 1000
+            return t >= inicioMes && t <= finMes
+          })
+
+          const chatsHoy = chatsSolo.filter(c => {
             const ultimo = c.lastMessage?.messageTimestamp
             return ultimo && (ultimo * 1000) > hace24h
           })
 
-          const sinResponder = chats.filter(c =>
+          const sinResponder = chatsMes.filter(c =>
             c.lastMessage && !c.lastMessage.key?.fromMe
           )
 
-          // Tiempo de respuesta: cuánto tardó el asesor en responder el último mensaje
-          const chatsRespondidos = chats
+          const chatsRespondidos = chatsMes
             .filter(c => c.lastMessage?.key?.fromMe && c.lastMessage?.messageTimestamp)
             .sort((a, b) => b.lastMessage.messageTimestamp - a.lastMessage.messageTimestamp)
 
@@ -76,7 +95,7 @@ export default function WhatsApp() {
           return {
             ...a,
             estado: instanciaInfo?.connectionStatus || 'unknown',
-            totalChats: chats.length,
+            totalChats: chatsMes.length,
             chatsHoy: chatsHoy.length,
             sinResponder: sinResponder.length,
             tiempoPromedio,
@@ -92,6 +111,15 @@ export default function WhatsApp() {
     setCargando(false)
   }
 
+  const meses = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date()
+    d.setMonth(d.getMonth() - i)
+    return {
+      valor: d.toISOString().slice(0, 7),
+      etiqueta: d.toLocaleString('es-CO', { month: 'long', year: 'numeric' })
+    }
+  })
+
   return (
     <div style={styles.container}>
       <div style={styles.header}>
@@ -105,7 +133,18 @@ export default function WhatsApp() {
             </span>
           </p>
         </div>
-        <button onClick={logout} style={styles.botonCerrar}>Cerrar sesión</button>
+        <div style={styles.headerDerecha}>
+          <select
+            style={styles.selectMes}
+            value={mesSeleccionado}
+            onChange={e => setMesSeleccionado(e.target.value)}
+          >
+            {meses.map(m => (
+              <option key={m.valor} value={m.valor}>{m.etiqueta}</option>
+            ))}
+          </select>
+          <button onClick={logout} style={styles.botonCerrar}>Cerrar sesión</button>
+        </div>
       </div>
 
       {cargando ? (
@@ -141,7 +180,7 @@ export default function WhatsApp() {
                   </div>
                   <div style={styles.metrica}>
                     <p style={styles.metricaNumero}>{m.totalChats}</p>
-                    <p style={styles.metricaLabel}>Total chats</p>
+                    <p style={styles.metricaLabel}>Chats del mes</p>
                   </div>
                   <div style={styles.metrica}>
                     <p style={{...styles.metricaNumero, color: '#4f46e5'}}>
@@ -164,8 +203,10 @@ export default function WhatsApp() {
 const styles = {
   container: { maxWidth: '1200px', margin: '0 auto', padding: '24px' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' },
+  headerDerecha: { display: 'flex', gap: '12px', alignItems: 'center' },
   titulo: { fontSize: '24px', fontWeight: 'bold', color: '#1a1a2e' },
   subtitulo: { color: '#666', fontSize: '14px', marginTop: '4px' },
+  selectMes: { padding: '8px 14px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '14px', cursor: 'pointer' },
   botonCerrar: { backgroundColor: 'transparent', border: '1px solid #ddd', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' },
   cargando: { textAlign: 'center', padding: '60px', color: '#666', fontSize: '18px' },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '20px' },
