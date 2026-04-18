@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 
 const INSTANCIAS = [
   { nombre: 'Khristian Ramirez', instancia: 'Khristian Ramirez', telefono: '573133536525' },
-  { nombre: 'Nidia Gomez', instancia: 'Nidia Gomez', telefono: '573219180250' },
+  { nombre: 'Cristina Gomez', instancia: 'Cristina Gomez', telefono: '573219180250' },
   { nombre: 'Luisa ramirez', instancia: 'Luisa ramirez', telefono: '573115918611' },
 ]
 
