@@ -30,19 +30,18 @@ function App() {
           </RutaProtegida>
         } />
         <Route path="/asesores" element={
-  <RutaProtegida rol="coordinador">
-    <Route path="/whatsapp" element={
-  <RutaProtegida rol="coordinador">
-    <WhatsApp />
-  </RutaProtegida>
-} />
-    <Asesores />
-  </RutaProtegida>
-} />
+          <RutaProtegida rol="coordinador">
+            <Asesores />
+          </RutaProtegida>
+        } />
+        <Route path="/whatsapp" element={
+          <RutaProtegida rol="coordinador">
+            <WhatsApp />
+          </RutaProtegida>
+        } />
       </Routes>
     </BrowserRouter>
   )
 }
 
 export default App
-
