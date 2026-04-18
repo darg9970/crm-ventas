@@ -28,45 +28,47 @@ export default function Ventas() {
     setCargando(false)
   }
 
-  async function onSubmit(data) {
-    setEnviando(true)
-    setMensaje(null)
+async function onSubmit(data) {
+  setEnviando(true)
+  setMensaje(null)
 
-    if (ventaEditando) {
-      const { error } = await supabase
-        .from('ventas')
-        .update(data)
-        .eq('id', ventaEditando)
-      if (error) {
-        setMensaje({ tipo: 'error', texto: 'Error al actualizar.' })
-      } else {
-        setMensaje({ tipo: 'exito', texto: '✅ Venta actualizada correctamente.' })
-        setVentaEditando(null)
-        reset()
-      }
+  if (ventaEditando) {
+    const { error } = await supabase
+      .from('ventas')
+      .update(data)
+      .eq('id', ventaEditando)
+    if (error) {
+      setMensaje({ tipo: 'error', texto: 'Error al actualizar.' })
     } else {
-      const { error } = await supabase.from('ventas').insert([{
-        ...data,
-        asesor_id: perfil.id
-      }])
-      if (error) {
-        setMensaje({ tipo: 'error', texto: 'Error al guardar. Intenta de nuevo.' })
-      } else {
-        setMensaje({ tipo: 'exito', texto: '✅ Venta registrada correctamente.' })
-        reset()
-      }
+      setMensaje({ tipo: 'exito', texto: '✅ Venta actualizada correctamente.' })
+      setVentaEditando(null)
+      reset()
     }
-    setEnviando(false)
+  } else {
+    const { error } = await supabase.from('ventas').insert([{
+      ...data,
+      asesor_id: perfil.id,
+      nombre_asesor: perfil.nombre
+    }])
+    if (error) {
+      setMensaje({ tipo: 'error', texto: 'Error al guardar. Intenta de nuevo.' })
+    } else {
+      setMensaje({ tipo: 'exito', texto: '✅ Venta registrada correctamente.' })
+      reset()
+    }
   }
+  setEnviando(false)
+}
 
   function editarVenta(venta) {
-    setVentaEditando(venta.id)
-    setPestana('registrar')
-    setMensaje(null)
-    const campos = ['nombre','cedula','celular','correo','ciudad','direccion',
-      'numero_cuenta','ot','fecha_instalacion','franja_horaria','estado']
-    campos.forEach(c => setValue(c, venta[c] || ''))
-  }
+  if (!window.confirm('¿Deseas editar esta venta?')) return
+  setVentaEditando(venta.id)
+  setPestana('registrar')
+  setMensaje(null)
+  const campos = ['nombre','cedula','celular','correo','ciudad','direccion',
+    'numero_cuenta','ot','fecha_instalacion','franja_horaria','estado']
+  campos.forEach(c => setValue(c, venta[c] || ''))
+}
 
   function cancelarEdicion() {
     setVentaEditando(null)

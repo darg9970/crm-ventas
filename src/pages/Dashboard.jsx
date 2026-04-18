@@ -215,7 +215,7 @@ const ventasFiltradas = ventas.filter(v => {
               <tbody>
                 {ventasFiltradas.map(v => (
                   <tr key={v.id} style={styles.tr}>
-                    <td style={styles.td}>{v.usuarios?.nombre || '-'}</td>
+                    <td style={styles.td}>{v.usuarios?.nombre || v.nombre_asesor || 'Asesor eliminado'}</td>
                     <td style={styles.td}>{v.nombre}</td>
                     <td style={styles.td}>{v.cedula}</td>
                     <td style={styles.td}>{v.celular}</td>
