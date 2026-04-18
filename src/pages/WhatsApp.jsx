@@ -6,6 +6,8 @@ const INSTANCIAS = [
   { nombre: 'Khristian Ramirez', instancia: 'Khristian Ramirez', telefono: '573133536525' },
   { nombre: 'Nidia Gomez', instancia: 'Nidia Gomez', telefono: '573219180250' },
   { nombre: 'Luisa ramirez', instancia: 'Luisa ramirez', telefono: '573115918611' },
+  { nombre: 'Catalina Duarte', instancia: 'Catalina Duarte', telefono: 'SIN DATOS' },
+
 ]
 
 async function fetchConReintento(instancia, intentos = 3) {
