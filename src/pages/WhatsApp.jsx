@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-
-const EVOLUTION_URL = import.meta.env.VITE_EVOLUTION_API_URL
-const EVOLUTION_KEY = import.meta.env.VITE_EVOLUTION_API_KEY
+import { supabase } from '../lib/supabase'
 
 const INSTANCIAS = [
   { nombre: 'Khristian Ramirez', instancia: 'Khristian Ramirez', telefono: '573133536525' },
@@ -27,36 +25,30 @@ export default function WhatsApp() {
     const resultados = await Promise.all(
       INSTANCIAS.map(async (a) => {
         try {
-          const [chatsRes, perfilRes] = await Promise.all([
-            fetch(`${EVOLUTION_URL}/chat/findChats/${a.instancia}`, {
-              headers: { apikey: EVOLUTION_KEY }
-            }),
-            fetch(`${EVOLUTION_URL}/instance/fetchInstances`, {
-              headers: { apikey: EVOLUTION_KEY }
-            })
-          ])
+          const { data, error } = await supabase.functions.invoke('whatsapp-metricas', {
+            body: { instancia: a.instancia }
+          })
 
-          const chats = await chatsRes.json()
-          const instancias = await perfilRes.json()
-          const instanciaInfo = Array.isArray(instancias)
-            ? instancias.find(i => i.instance?.instanceName === a.instancia)
-            : null
+          if (error) throw error
 
-          const chatsArray = Array.isArray(chats) ? chats : []
+          const chats = Array.isArray(data.chats) ? data.chats : []
+          const instancias = Array.isArray(data.instancias) ? data.instancias : []
+          const instanciaInfo = instancias.find(i => i.instance?.instanceName === a.instancia)
+
           const ahora = Date.now()
           const hace24h = ahora - 24 * 60 * 60 * 1000
 
-          const chatsHoy = chatsArray.filter(c => {
+          const chatsHoy = chats.filter(c => {
             const ultimo = c.lastMessage?.messageTimestamp
             return ultimo && (ultimo * 1000) > hace24h
           })
 
-          const sinResponder = chatsArray.filter(c => {
+          const sinResponder = chats.filter(c => {
             const ultimo = c.lastMessage
             return ultimo && !ultimo.key?.fromMe
           })
 
-          const tiemposRespuesta = chatsArray
+          const tiemposRespuesta = chats
             .filter(c => c.lastMessage?.key?.fromMe)
             .map(c => {
               const ts = c.lastMessage?.messageTimestamp
@@ -71,7 +63,7 @@ export default function WhatsApp() {
           return {
             ...a,
             estado: instanciaInfo?.instance?.state || 'unknown',
-            totalChats: chatsArray.length,
+            totalChats: chats.length,
             chatsHoy: chatsHoy.length,
             sinResponder: sinResponder.length,
             tiempoPromedio,
@@ -87,7 +79,12 @@ export default function WhatsApp() {
     setCargando(false)
   }
 
-  const estadoColor = { open: '#68d391', connected: '#68d391', close: '#fc8181', unknown: '#f6ad55' }
+  const estadoColor = {
+    open: '#68d391',
+    connected: '#68d391',
+    close: '#fc8181',
+    unknown: '#f6ad55'
+  }
 
   return (
     <div style={styles.container}>
