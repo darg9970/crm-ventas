@@ -30,6 +30,7 @@ async function fetchConReintento(instancia, intentos = 3) {
 export default function WhatsApp() {
   const { perfil, logout } = useAuth()
   const [metricas, setMetricas] = useState([])
+const ultimasMetricas = useState({})[0]
   const [cargando, setCargando] = useState(true)
   const [ultimaActualizacion, setUltimaActualizacion] = useState(null)
 
@@ -110,8 +111,9 @@ export default function WhatsApp() {
           ok: true
         }
       } catch (err) {
-        return { ...a, ok: false, error: err.message }
-      }
+  const ultimo = metricas.find(m => m.instancia === a.instancia)
+  return ultimo || { ...a, ok: false, error: err.message }
+}
     })
   )
   setMetricas(resultados)
