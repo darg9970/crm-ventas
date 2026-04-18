@@ -48,17 +48,17 @@ export default function WhatsApp() {
             return ultimo && !ultimo.key?.fromMe
           })
 
-          const tiemposRespuesta = chats
-            .filter(c => c.lastMessage?.key?.fromMe)
-            .map(c => {
-              const ts = c.lastMessage?.messageTimestamp
-              return ts ? (ahora / 1000 - ts) / 60 : null
-            })
-            .filter(t => t !== null && t < 1440)
+          const sinResponderConTiempo = chats
+  .filter(c => c.lastMessage && !c.lastMessage.key?.fromMe)
+  .map(c => {
+    const minutos = Math.round((ahora / 1000 - c.lastMessage.messageTimestamp) / 60)
+    return minutos
+  })
+  .filter(t => t < 480)
 
-          const tiempoPromedio = tiemposRespuesta.length > 0
-            ? Math.round(tiemposRespuesta.reduce((a, b) => a + b, 0) / tiemposRespuesta.length)
-            : null
+const tiempoPromedio = sinResponderConTiempo.length > 0
+  ? Math.round(sinResponderConTiempo.reduce((a, b) => a + b, 0) / sinResponderConTiempo.length)
+  : null
 
           return {
             ...a,
@@ -80,11 +80,12 @@ export default function WhatsApp() {
   }
 
   const estadoColor = {
-    open: '#68d391',
-    connected: '#68d391',
-    close: '#fc8181',
-    unknown: '#f6ad55'
-  }
+  open: '#68d391',
+  connected: '#68d391',
+  connecting: '#68d391',
+  close: '#fc8181',
+  unknown: '#f6ad55'
+}
 
   return (
     <div style={styles.container}>
@@ -117,7 +118,7 @@ export default function WhatsApp() {
                   ...styles.estado,
                   backgroundColor: estadoColor[m.estado] || '#f6ad55'
                 }}>
-                  {m.estado === 'open' || m.estado === 'connected' ? '🟢 Conectado' : '🔴 Desconectado'}
+                  {m.estado !== 'close' && m.estado !== 'unknown' ? '🟢 Conectado' : '🔴 Desconectado'}
                 </span>
               </div>
 
