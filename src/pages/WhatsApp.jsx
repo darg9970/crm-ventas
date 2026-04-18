@@ -30,20 +30,21 @@ export default function WhatsApp() {
   const [metricas, setMetricas] = useState([])
   const [cargando, setCargando] = useState(true)
   const [ultimaActualizacion, setUltimaActualizacion] = useState(null)
-  const [mesSeleccionado, setMesSeleccionado] = useState(new Date().toISOString().slice(0, 7))
+
+  const hoy = new Date().toISOString().slice(0, 10)
+  const [fechaSeleccionada, setFechaSeleccionada] = useState(hoy)
 
   useEffect(() => {
     cargarMetricas()
     const intervalo = setInterval(cargarMetricas, 60000)
     return () => clearInterval(intervalo)
-  }, [mesSeleccionado])
+  }, [fechaSeleccionada])
 
   async function cargarMetricas() {
     setCargando(true)
 
-    const [anio, mes] = mesSeleccionado.split('-').map(Number)
-    const inicioMes = new Date(anio, mes - 1, 1).getTime()
-    const finMes = new Date(anio, mes, 0, 23, 59, 59).getTime()
+    const inicioDia = new Date(fechaSeleccionada + 'T00:00:00').getTime()
+    const finDia = new Date(fechaSeleccionada + 'T23:59:59').getTime()
 
     const resultados = await Promise.all(
       INSTANCIAS.map(async (a) => {
@@ -53,52 +54,59 @@ export default function WhatsApp() {
           const instancias = Array.isArray(data.instancias) ? data.instancias : []
           const instanciaInfo = instancias.find(i => i.name === a.instancia)
 
-          // Excluir grupos (@g.us)
+          // Excluir grupos
           const chatsSolo = todosChats.filter(c => {
-  const id = c.remoteJid || c.id || ''
-  return !id.includes('@g.us') && !id.includes('-')
-})
+            const id = c.remoteJid || c.id || ''
+            return !id.includes('@g.us') && !id.includes('-')
+          })
 
           const ahora = Date.now()
           const hace24h = ahora - 24 * 60 * 60 * 1000
 
-          // Filtrar por mes seleccionado
-          const chatsMes = chatsSolo.filter(c => {
+          // Chats con actividad en el día seleccionado
+          const chatsDia = chatsSolo.filter(c => {
             const ts = c.lastMessage?.messageTimestamp
             if (!ts) return false
             const t = ts * 1000
-            return t >= inicioMes && t <= finMes
+            return t >= inicioDia && t <= finDia
           })
 
+          // Chats hoy (siempre el día actual)
           const chatsHoy = chatsSolo.filter(c => {
-            const ultimo = c.lastMessage?.messageTimestamp
-            return ultimo && (ultimo * 1000) > hace24h
+            const ts = c.lastMessage?.messageTimestamp
+            return ts && (ts * 1000) > hace24h
           })
 
-          const sinResponder = chatsMes.filter(c =>
+          // Sin responder en el día seleccionado
+          const sinResponder = chatsDia.filter(c =>
             c.lastMessage && !c.lastMessage.key?.fromMe
           )
 
-          const chatsRespondidos = chatsMes
+          // Mensajes enviados en el día seleccionado
+          const mensajesEnviados = chatsDia.filter(c =>
+            c.lastMessage?.key?.fromMe
+          ).length
+
+          // Última respuesta
+          const chatsRespondidos = chatsDia
             .filter(c => c.lastMessage?.key?.fromMe && c.lastMessage?.messageTimestamp)
             .sort((a, b) => b.lastMessage.messageTimestamp - a.lastMessage.messageTimestamp)
 
-          let tiempoPromedio = null
+          let tiempoUltimaResp = null
           if (chatsRespondidos.length > 0) {
-            const tsUltimaRespuesta = chatsRespondidos[0].lastMessage.messageTimestamp
-            const minutosDesdeRespuesta = Math.round((ahora / 1000 - tsUltimaRespuesta) / 60)
-            if (minutosDesdeRespuesta >= 0 && minutosDesdeRespuesta < 480) {
-              tiempoPromedio = minutosDesdeRespuesta
-            }
+            const ts = chatsRespondidos[0].lastMessage.messageTimestamp
+            const minutos = Math.round((ahora / 1000 - ts) / 60)
+            if (minutos >= 0 && minutos < 1440) tiempoUltimaResp = minutos
           }
 
           return {
             ...a,
             estado: instanciaInfo?.connectionStatus || 'unknown',
-            totalChats: chatsMes.length,
+            chatsDia: chatsDia.length,
             chatsHoy: chatsHoy.length,
             sinResponder: sinResponder.length,
-            tiempoPromedio,
+            mensajesEnviados,
+            tiempoUltimaResp,
             ok: true
           }
         } catch (err) {
@@ -111,14 +119,7 @@ export default function WhatsApp() {
     setCargando(false)
   }
 
-  const meses = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date()
-    d.setMonth(d.getMonth() - i)
-    return {
-      valor: d.toISOString().slice(0, 7),
-      etiqueta: d.toLocaleString('es-CO', { month: 'long', year: 'numeric' })
-    }
-  })
+  const esDiaActual = fechaSeleccionada === hoy
 
   return (
     <div style={styles.container}>
@@ -134,21 +135,19 @@ export default function WhatsApp() {
           </p>
         </div>
         <div style={styles.headerDerecha}>
-          <select
-            style={styles.selectMes}
-            value={mesSeleccionado}
-            onChange={e => setMesSeleccionado(e.target.value)}
-          >
-            {meses.map(m => (
-              <option key={m.valor} value={m.valor}>{m.etiqueta}</option>
-            ))}
-          </select>
+          <input
+            type="date"
+            style={styles.inputFecha}
+            value={fechaSeleccionada}
+            max={hoy}
+            onChange={e => setFechaSeleccionada(e.target.value)}
+          />
           <button onClick={logout} style={styles.botonCerrar}>Cerrar sesión</button>
         </div>
       </div>
 
       {cargando ? (
-        <div style={styles.cargando}>Cargando métricas de WhatsApp...</div>
+        <div style={styles.cargando}>Cargando métricas...</div>
       ) : (
         <div style={styles.grid}>
           {metricas.map((m, i) => (
@@ -169,8 +168,10 @@ export default function WhatsApp() {
               {m.ok ? (
                 <div style={styles.metricas}>
                   <div style={styles.metrica}>
-                    <p style={styles.metricaNumero}>{m.chatsHoy}</p>
-                    <p style={styles.metricaLabel}>Chats hoy</p>
+                    <p style={styles.metricaNumero}>{m.chatsDia}</p>
+                    <p style={styles.metricaLabel}>
+                      {esDiaActual ? 'Chats hoy' : 'Chats del día'}
+                    </p>
                   </div>
                   <div style={styles.metrica}>
                     <p style={{...styles.metricaNumero, color: m.sinResponder > 0 ? '#e53e3e' : '#38a169'}}>
@@ -179,12 +180,14 @@ export default function WhatsApp() {
                     <p style={styles.metricaLabel}>Sin responder</p>
                   </div>
                   <div style={styles.metrica}>
-                    <p style={styles.metricaNumero}>{m.totalChats}</p>
-                    <p style={styles.metricaLabel}>Chats del mes</p>
+                    <p style={{...styles.metricaNumero, color: '#38a169'}}>
+                      {m.mensajesEnviados}
+                    </p>
+                    <p style={styles.metricaLabel}>Respondidos</p>
                   </div>
                   <div style={styles.metrica}>
                     <p style={{...styles.metricaNumero, color: '#4f46e5'}}>
-                      {m.tiempoPromedio !== null ? `${m.tiempoPromedio}m` : 'N/A'}
+                      {m.tiempoUltimaResp !== null ? `${m.tiempoUltimaResp}m` : 'N/A'}
                     </p>
                     <p style={styles.metricaLabel}>Última resp.</p>
                   </div>
@@ -206,7 +209,7 @@ const styles = {
   headerDerecha: { display: 'flex', gap: '12px', alignItems: 'center' },
   titulo: { fontSize: '24px', fontWeight: 'bold', color: '#1a1a2e' },
   subtitulo: { color: '#666', fontSize: '14px', marginTop: '4px' },
-  selectMes: { padding: '8px 14px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '14px', cursor: 'pointer' },
+  inputFecha: { padding: '8px 14px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '14px', cursor: 'pointer' },
   botonCerrar: { backgroundColor: 'transparent', border: '1px solid #ddd', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' },
   cargando: { textAlign: 'center', padding: '60px', color: '#666', fontSize: '18px' },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '20px' },
