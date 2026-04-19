@@ -108,9 +108,9 @@ export default function Dashboard() {
   const estadoColor = {
     'Pendiente': '#f6ad55',
     'En proceso': '#63b3ed',
-    'Instalada': '#68d391',
+    'Instalada': '#9f7aea',
     'Cancelada': '#fc8181',
-    'Pagada': '#9f7aea',
+    'Pagada': '#68d391',
   }
 
   const comisionColor = {

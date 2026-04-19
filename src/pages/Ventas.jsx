@@ -87,8 +87,9 @@ async function onSubmit(data) {
   const estadoColor = {
     'Pendiente': '#f6ad55',
     'En proceso': '#63b3ed',
-    'Instalada': '#68d391',
+    'Instalada': '#9f7aea',
     'Cancelada': '#fc8181',
+    'Pagada':'#68d391'
   }
 
   return (
