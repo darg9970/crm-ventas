@@ -199,7 +199,7 @@ export default function Dashboard() {
                       <span style={{...styles.badge, backgroundColor: '#e2e8f0'}}>{a.total}</span>
                     </td>
                     <td style={styles.td}>
-                      <span style={{...styles.badge, backgroundColor: '#68d391'}}>{a.instaladas}</span>
+                      <span style={{...styles.badge, backgroundColor: '#c5abf8'}}>{a.instaladas}</span>
                     </td>
                     <td style={styles.td}>
                       <span style={{...styles.badge, backgroundColor: '#f6ad55'}}>{a.pendientePagar}</span>
