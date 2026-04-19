@@ -326,20 +326,16 @@ const styles = {
   boton: { backgroundColor: '#4f46e5', color: 'white', padding: '14px', borderRadius: '8px', border: 'none', fontSize: '16px', fontWeight: '600', cursor: 'pointer' },
   tablaWrapper: { 
     overflowX: 'auto', 
-    // Voltea el contenedor para que el scroll pase a la parte superior
-    transform: 'scaleY(-1)', 
-    msTransform: 'scaleY(-1)', // Soporte para navegadores antiguos
-    WebkitTransform: 'scaleY(-1)' 
-  },
-  tabla: { 
-    // Voltea la tabla de nuevo para que el contenido se vea derecho
-    transform: 'scaleY(-1)', 
-    msTransform: 'scaleY(-1)',
-    WebkitTransform: 'scaleY(-1)',
+    transform: 'rotate(180deg)', // Cambiado de rotateX a rotate
+    direction: 'rtl'             // Opcional: ayuda a la coherencia del scroll
+},
+tabla: { 
+    transform: 'rotate(180deg)', // Cambiado de rotateX a rotate
     width: '100%', 
     borderCollapse: 'collapse', 
-    fontSize: '13px' 
-  },
+    fontSize: '13px',
+    direction: 'ltr'             // Para que el texto interno fluya de izquierda a derecha
+},
   tabla: { width: '100%', borderCollapse: 'collapse', fontSize: '14px' },
   thead: { backgroundColor: '#f7fafc' },
   th: { padding: '12px 16px', textAlign: 'left', fontWeight: '600', color: '#4a5568', borderBottom: '2px solid #e2e8f0', whiteSpace: 'nowrap' },
