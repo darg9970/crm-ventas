@@ -326,7 +326,6 @@ const styles = {
   boton: { backgroundColor: '#4f46e5', color: 'white', padding: '14px', borderRadius: '8px', border: 'none', fontSize: '16px', fontWeight: '600', cursor: 'pointer' },
   tablaWrapper: { overflowX: 'auto', transform: 'rotateX(180deg)' },
   tabla: { transform: 'rotateX(180deg)', width: '100%', borderCollapse: 'collapse', fontSize: '13px' },
-  tabla: { width: '100%', borderCollapse: 'collapse', fontSize: '14px' },
   thead: { backgroundColor: '#f7fafc' },
   th: { padding: '12px 16px', textAlign: 'left', fontWeight: '600', color: '#4a5568', borderBottom: '2px solid #e2e8f0', whiteSpace: 'nowrap' },
   tr: { borderBottom: '1px solid #e2e8f0' },
