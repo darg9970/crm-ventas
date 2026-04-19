@@ -145,13 +145,13 @@ export default function Dashboard() {
           <p style={styles.metricaLabel}>Total ventas</p>
         </div>
         <div style={styles.metricaCard}>
-          <p style={{...styles.metricaNumero, color: '#38a169'}}>
+          <p style={{...styles.metricaNumero, color: '#c5abf8'}}>
             {ventasFiltradas.filter(v => v.estado === 'Instalada').length}
           </p>
           <p style={styles.metricaLabel}>Instaladas</p>
         </div>
         <div style={styles.metricaCard}>
-          <p style={{...styles.metricaNumero, color: '#9f7aea'}}>
+          <p style={{...styles.metricaNumero, color: '#38a169'}}>
             {ventasFiltradas.filter(v => v.estado === 'Pagada').length}
           </p>
           <p style={styles.metricaLabel}>Pagadas</p>
