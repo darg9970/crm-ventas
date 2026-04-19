@@ -108,7 +108,7 @@ export default function Dashboard() {
   const estadoColor = {
     'Pendiente': '#f6ad55',
     'En proceso': '#63b3ed',
-    'Instalada': '#9f7aea',
+    'Instalada': '#c5abf8',
     'Cancelada': '#fc8181',
     'Pagada': '#68d391',
   }
