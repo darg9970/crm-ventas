@@ -206,10 +206,11 @@ async function onSubmit(data) {
               <div style={styles.campo}>
                 <label style={styles.label}>Estado</label>
                 <select style={styles.input} {...register('estado')}>
-                  <option value="Pendiente">Pendiente</option>
-                  <option value="En proceso">En proceso</option>
-                  <option value="Instalada">Instalada</option>
-                  <option value="Cancelada">Cancelada</option>
+                   <option value="Pendiente">Pendiente</option>
+                   <option value="En proceso">En proceso</option>
+                   <option value="Instalada">Instalada</option>
+                   <option value="Cancelada">Cancelada</option>
+                   <option value="Pagada">Pagada</option>
                 </select>
               </div>
             </div>
@@ -323,7 +324,8 @@ const styles = {
   exito: { color: '#38a169', backgroundColor: '#f0fff4', padding: '12px', borderRadius: '8px', textAlign: 'center' },
   error: { color: '#e53e3e', backgroundColor: '#fff5f5', padding: '12px', borderRadius: '8px', textAlign: 'center' },
   boton: { backgroundColor: '#4f46e5', color: 'white', padding: '14px', borderRadius: '8px', border: 'none', fontSize: '16px', fontWeight: '600', cursor: 'pointer' },
-  tablaWrapper: { overflowX: 'auto' },
+  tablaWrapper: { overflowX: 'auto', transform: 'rotateX(180deg)' },
+tabla: { transform: 'rotateX(180deg)', width: '100%', borderCollapse: 'collapse', fontSize: '13px' },
   tabla: { width: '100%', borderCollapse: 'collapse', fontSize: '14px' },
   thead: { backgroundColor: '#f7fafc' },
   th: { padding: '12px 16px', textAlign: 'left', fontWeight: '600', color: '#4a5568', borderBottom: '2px solid #e2e8f0', whiteSpace: 'nowrap' },

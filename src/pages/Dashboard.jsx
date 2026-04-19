@@ -94,7 +94,6 @@ export default function Dashboard() {
     return coincideBusqueda && coincideAsesor && coincideEstado && coincideComision && coincideFecha
   })
 
-  // Resumen por asesor
   const resumenPorAsesor = asesores.map(a => {
     const ventasAsesor = ventasFiltradas.filter(v => v.asesor_id === a.id)
     return {
@@ -111,17 +110,18 @@ export default function Dashboard() {
     'En proceso': '#63b3ed',
     'Instalada': '#68d391',
     'Cancelada': '#fc8181',
+    'Pagada': '#9f7aea',
   }
 
   const comisionColor = {
     'Pendiente de legalizar': '#fc8181',
     'Pendiente de pagar': '#f6ad55',
     'Pagado al asesor': '#68d391',
+    'Cancelada': '#e2e8f0',
   }
 
   return (
     <div style={styles.container}>
-      {/* Header */}
       <div style={styles.header}>
         <div>
           <h1 style={styles.titulo}>Dashboard Coordinador</h1>
@@ -151,6 +151,12 @@ export default function Dashboard() {
           <p style={styles.metricaLabel}>Instaladas</p>
         </div>
         <div style={styles.metricaCard}>
+          <p style={{...styles.metricaNumero, color: '#9f7aea'}}>
+            {ventasFiltradas.filter(v => v.estado === 'Pagada').length}
+          </p>
+          <p style={styles.metricaLabel}>Pagadas</p>
+        </div>
+        <div style={styles.metricaCard}>
           <p style={{...styles.metricaNumero, color: '#e53e3e'}}>
             {ventasFiltradas.filter(v => v.estado_comision === 'Pendiente de legalizar').length}
           </p>
@@ -166,7 +172,7 @@ export default function Dashboard() {
           <p style={{...styles.metricaNumero, color: '#3182ce'}}>
             {ventasFiltradas.filter(v => v.estado_comision === 'Pagado al asesor').length}
           </p>
-          <p style={styles.metricaLabel}>Pagadas</p>
+          <p style={styles.metricaLabel}>Com. pagadas</p>
         </div>
       </div>
 
@@ -190,24 +196,16 @@ export default function Dashboard() {
                   <tr key={i} style={styles.tr}>
                     <td style={{...styles.td, fontWeight: '600'}}>{a.nombre}</td>
                     <td style={styles.td}>
-                      <span style={{...styles.badge, backgroundColor: '#e2e8f0'}}>
-                        {a.total}
-                      </span>
+                      <span style={{...styles.badge, backgroundColor: '#e2e8f0'}}>{a.total}</span>
                     </td>
                     <td style={styles.td}>
-                      <span style={{...styles.badge, backgroundColor: '#68d391'}}>
-                        {a.instaladas}
-                      </span>
+                      <span style={{...styles.badge, backgroundColor: '#68d391'}}>{a.instaladas}</span>
                     </td>
                     <td style={styles.td}>
-                      <span style={{...styles.badge, backgroundColor: '#f6ad55'}}>
-                        {a.pendientePagar}
-                      </span>
+                      <span style={{...styles.badge, backgroundColor: '#f6ad55'}}>{a.pendientePagar}</span>
                     </td>
                     <td style={styles.td}>
-                      <span style={{...styles.badge, backgroundColor: '#68d391'}}>
-                        {a.pagadas}
-                      </span>
+                      <span style={{...styles.badge, backgroundColor: '#68d391'}}>{a.pagadas}</span>
                     </td>
                   </tr>
                 ))}
@@ -221,9 +219,7 @@ export default function Dashboard() {
       <div style={styles.card}>
         <div style={styles.filtrosHeader}>
           <h2 style={styles.subtituloCard}>📋 Detalle de ventas</h2>
-          <button
-            onClick={() => exportarExcel(ventasFiltradas)}
-            style={styles.botonExcel}>
+          <button onClick={() => exportarExcel(ventasFiltradas)} style={styles.botonExcel}>
             ⬇️ Exportar CSV
           </button>
         </div>
@@ -247,12 +243,14 @@ export default function Dashboard() {
             <option>En proceso</option>
             <option>Instalada</option>
             <option>Cancelada</option>
+            <option>Pagada</option>
           </select>
           <select style={styles.input} value={filtroComision} onChange={e => setFiltroComision(e.target.value)}>
             <option value="">Todas las comisiones</option>
             <option>Pendiente de legalizar</option>
             <option>Pendiente de pagar</option>
             <option>Pagado al asesor</option>
+            <option>Cancelada</option>
           </select>
           <div style={styles.campoFecha}>
             <label style={styles.labelFecha}>Desde</label>
@@ -331,6 +329,7 @@ export default function Dashboard() {
                         <option>Pendiente de legalizar</option>
                         <option>Pendiente de pagar</option>
                         <option>Pagado al asesor</option>
+                        <option>Cancelada</option>
                       </select>
                     </td>
                   </tr>
@@ -353,7 +352,7 @@ const styles = {
   headerBotones: { display: 'flex', gap: '12px' },
   botonNav: { backgroundColor: '#4f46e5', color: 'white', padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
   botonCerrar: { backgroundColor: 'transparent', border: '1px solid #ddd', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' },
-  metricas: { display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px', marginBottom: '24px' },
+  metricas: { display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '16px', marginBottom: '24px' },
   metricaCard: { backgroundColor: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.08)', textAlign: 'center' },
   metricaNumero: { fontSize: '36px', fontWeight: 'bold', color: '#1a1a2e', margin: '0' },
   metricaLabel: { color: '#666', fontSize: '13px', marginTop: '4px' },
@@ -365,8 +364,8 @@ const styles = {
   campoFecha: { display: 'flex', flexDirection: 'column', gap: '4px' },
   labelFecha: { fontSize: '12px', fontWeight: '600', color: '#666' },
   botonLimpiar: { padding: '10px 14px', borderRadius: '8px', border: '1px solid #ddd', backgroundColor: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: '600', color: '#666' },
-  tablaWrapper: { overflowX: 'auto' },
-  tabla: { width: '100%', borderCollapse: 'collapse', fontSize: '13px' },
+  tablaWrapper: { overflowX: 'auto', transform: 'rotateX(180deg)' },
+  tabla: { transform: 'rotateX(180deg)', width: '100%', borderCollapse: 'collapse', fontSize: '13px' },
   thead: { backgroundColor: '#f7fafc' },
   th: { padding: '12px 16px', textAlign: 'left', fontWeight: '600', color: '#4a5568', borderBottom: '2px solid #e2e8f0', whiteSpace: 'nowrap' },
   tr: { borderBottom: '1px solid #e2e8f0' },
