@@ -55,17 +55,20 @@ export default function WhatsApp() {
           const instanciaInfo = instancias.find(i => i.name === a.instancia)
 
           // --- SUSTITUYE DESDE LA LÍNEA 60 HASTA LA 63 CON ESTO ---
+         // --- SUSTITUYE DESDE LA LÍNEA 60 HASTA LA 63 CON ESTO ---
           const chatsSolo = todosChats.filter(c => {
-          const id = c.remoteJid || c.id || ''
+          const id = c.remoteJid || c.id || '';
   
-  // Filtro Maestro: Eliminamos Grupos, Canales y Listas de Difusión
-          const esGrupo = id.includes('@g.us') || 
-                  id.includes('-') || 
-                  id.includes('@newsletter') || 
-                  id.includes('@broadcast');
+  // REGLA DE ORO: Solo permitimos IDs que correspondan a personas individuales.
+  // En WhatsApp/Baileys, los contactos personales terminan en @s.whatsapp.net
+  // Los grupos (@g.us) y canales (@newsletter) quedan fuera automáticamente.
+          const esContactoPersonal = id.endsWith('@s.whatsapp.net');
 
-  return id && !esGrupo;
-})
+  // Filtro adicional por si acaso el ID contiene guiones (típico de grupos antiguos)
+          const tieneGuion = id.includes('-');
+
+         return esContactoPersonal && !tieneGuion;
+});
 
           const ahora = Date.now()
           const hace24h = ahora - 24 * 60 * 60 * 1000
