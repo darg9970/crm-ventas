@@ -54,10 +54,18 @@ export default function WhatsApp() {
           const instancias = Array.isArray(data.instancias) ? data.instancias : []
           const instanciaInfo = instancias.find(i => i.name === a.instancia)
 
+          // --- SUSTITUYE DESDE LA LÍNEA 60 HASTA LA 63 CON ESTO ---
           const chatsSolo = todosChats.filter(c => {
-            const id = c.remoteJid || c.id || ''
-            return !id.includes('@g.us') && !id.includes('-')
-          })
+          const id = c.remoteJid || c.id || ''
+  
+  // Filtro Maestro: Eliminamos Grupos, Canales y Listas de Difusión
+          const esGrupo = id.includes('@g.us') || 
+                  id.includes('-') || 
+                  id.includes('@newsletter') || 
+                  id.includes('@broadcast');
+
+  return id && !esGrupo;
+})
 
           const ahora = Date.now()
           const hace24h = ahora - 24 * 60 * 60 * 1000
